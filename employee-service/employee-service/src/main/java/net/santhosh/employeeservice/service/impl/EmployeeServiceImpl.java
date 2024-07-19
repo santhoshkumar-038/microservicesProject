@@ -6,7 +6,9 @@ import lombok.AllArgsConstructor;
 import net.santhosh.employeeservice.dto.APIResponseDto;
 import net.santhosh.employeeservice.dto.DepartmentDto;
 import net.santhosh.employeeservice.dto.EmployeeDto;
+import net.santhosh.employeeservice.dto.OrganizationDto;
 import net.santhosh.employeeservice.entity.Employee;
+import net.santhosh.employeeservice.mapper.EmployeeMapper;
 import net.santhosh.employeeservice.repository.EmployeeRepository;
 import net.santhosh.employeeservice.service.APIClient;
 import net.santhosh.employeeservice.service.EmployeeService;
@@ -32,21 +34,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     //private APIClient apiClient;
     @Override
     public EmployeeDto saveEmployee(EmployeeDto employeeDto) {
-        Employee employee = new Employee(
-                employeeDto.getId(),
-                employeeDto.getFirstName(),
-                employeeDto.getLastName(),
-                employeeDto.getEmail(),
-                employeeDto.getDepartmentCode()
-        );
+        Employee employee = EmployeeMapper.mapToEmployee(employeeDto);
         Employee savedEmployee = employeeRepository.save(employee);
-        return new EmployeeDto(
-                savedEmployee.getId(),
-                savedEmployee.getFirstName(),
-                savedEmployee.getLastName(),
-                savedEmployee.getEmail(),
-                savedEmployee.getDepartmentCode()
-        );
+        EmployeeDto savedEmployeeDto = EmployeeMapper.mapToEmployeeDto(savedEmployee);
+        return savedEmployeeDto;
     }
 
     //@CircuitBreaker(name = "${spring.application.name}", fallbackMethod = "getDefaultDepartment")
@@ -66,17 +57,21 @@ public class EmployeeServiceImpl implements EmployeeService {
                                             .bodyToMono(DepartmentDto.class)
                                             .block();
 
+        OrganizationDto organizationDto = webClient
+                .get()
+                .uri("http://localhost:8083/api/organizations/"+employee.getOrganizationCode())
+                .retrieve()
+                .bodyToMono(OrganizationDto.class)
+                .block();
+
         //DepartmentDto departmentDto = apiClient.getDepartmentByCode(employee.getDepartmentCode());
 
+        EmployeeDto employeeDto = EmployeeMapper.mapToEmployeeDto(employee);
+        APIResponseDto apiResponseDto = new APIResponseDto();
+        apiResponseDto.setEmployee(employeeDto);
+        apiResponseDto.setDepartment(departmentDto);
+        apiResponseDto.setOrganization(organizationDto);
 
-        EmployeeDto employeeDto = new EmployeeDto(
-                employee.getId(),
-                employee.getFirstName(),
-                employee.getLastName(),
-                employee.getEmail(),
-                employee.getDepartmentCode()
-        );
-        APIResponseDto apiResponseDto = new APIResponseDto(employeeDto, departmentDto);
         return apiResponseDto;
     }
 
@@ -89,14 +84,13 @@ public class EmployeeServiceImpl implements EmployeeService {
         departmentDto.setDepartmentName("R&D Department");
         departmentDto.setDepartmentDescription("Research and Development Department");
 
-        EmployeeDto employeeDto = new EmployeeDto(
-                employee.getId(),
-                employee.getFirstName(),
-                employee.getLastName(),
-                employee.getEmail(),
-                employee.getDepartmentCode()
-        );
-        APIResponseDto apiResponseDto = new APIResponseDto(employeeDto, departmentDto);
+        OrganizationDto organizationDto = new OrganizationDto();
+        organizationDto.setOrganizationCode("XYZ");
+        organizationDto.setOrganizationDescription("XYZ");
+        organizationDto.setOrganizationName("XYZ");
+
+        EmployeeDto employeeDto = EmployeeMapper.mapToEmployeeDto(employee);
+        APIResponseDto apiResponseDto = new APIResponseDto(employeeDto, departmentDto, organizationDto);
         return apiResponseDto;
     }
 }
